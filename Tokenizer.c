@@ -1,165 +1,79 @@
 #include "Tokenizer.h"
-#include <ctype.h>
+#include "Givens.h"
 #include <stdio.h>
+#include <ctype.h>
 #include <string.h>
 
-// Define the maximum size for a lexeme
-#define LEXEME_MAX 256
 
-// Helper function to check if a character is a binary operator
-_Bool isBinOp(char c) {
-    return (c == '+' || c == '*' || c == '!' || c == '=' || c == '%');
+// Helper function to add a token to the lexics array
+static void addToken(struct lexics *aLex, int *numLex, enum token token, const char *lexeme) {
+    aLex[*numLex].token = token;
+    strcpy(aLex[*numLex].lexeme, lexeme);
+    (*numLex)++;
 }
 
-// Helper function to read and append characters to a buffer until a condition is met
-static int readUntilCondition(FILE *inf, char *buffer, int (*condition)(int)) {
-    int bufferIndex = 0;
-    int ch;
-
-    while ((ch = fgetc(inf)) != EOF && condition(ch)) {
-        buffer[bufferIndex++] = ch;
-    }
-    buffer[bufferIndex] = '\0';
-
-    return bufferIndex;
-}
-
-// Helper function to tokenize numbers
-static _Bool tokenizeNumber(struct lexics *aLex, int *lexIndex, FILE *inf) {
-    char buffer[LEXEME_MAX];
-    buffer[0] = '\0';
-
-    int bufferIndex = readUntilCondition(inf, buffer, isdigit);
-
-    // Check if it's a valid number
-    if (validNumber(buffer)) {
-        aLex[*lexIndex].token = NUMBER;
-        strcpy(aLex[*lexIndex].lexeme, buffer);
-        (*lexIndex)++;
-        return TRUE;
-    }
-
-    return FALSE; // Invalid number
-}
-
-// Helper function to tokenize identifiers
-static _Bool tokenizeIdentifier(struct lexics *aLex, int *lexIndex, FILE *inf) {
-    char buffer[LEXEME_MAX];
-    buffer[0] = '\0';
-
-    int bufferIndex = readUntilCondition(inf, buffer, isalnum);
-
-    // Check if it's a valid identifier
-    if (validIdentifier(buffer)) {
-        aLex[*lexIndex].token = IDENTIFIER;
-        strcpy(aLex[*lexIndex].lexeme, buffer);
-        (*lexIndex)++;
-        return TRUE;
-    }
-
-    return FALSE; // Invalid identifier
-}
-
-// Implement the tokenizer function
 _Bool tokenizer(struct lexics *aLex, int *numLex, FILE *inf) {
-    int lexIndex = 0;
-    int ch;
+    char currentChar;
+    int lexemeIndex = 0;
+    int tokenIndex = 0;
+    _Bool inLexeme = FALSE;
+    char lexeme[LEXEME_MAX];
 
-    // Read characters from the file
-    while ((ch = fgetc(inf)) != EOF) {
-        // Handle whitespace characters
-        if (isspace(ch)) {
-            continue;
-        }
-        
-        // Handle numeric lexemes
-        if (isdigit(ch)) {
-            if (!tokenizeNumber(aLex, &lexIndex, inf)) {
-                return FALSE; // Invalid number
+    // Define character lexemes
+    const char* characterLexemes = "();{}";
+
+    while ((currentChar = fgetc(inf)) != EOF) {
+        // Check if the current character is a character lexeme
+        if (strchr(characterLexemes, currentChar) != NULL) {
+            // Check if we were in the middle of a lexeme
+            if (inLexeme) {
+                lexeme[lexemeIndex] = '\0'; // Null-terminate the lexeme
+                inLexeme = FALSE;
+                // Tokenize the lexeme and add it to aLex
+                if (validNumber(lexeme)) {
+                    addToken(aLex, &tokenIndex, NUMBER, lexeme);
+                } else if (validIdentifier(lexeme)) {
+                    addToken(aLex, &tokenIndex, IDENTIFIER, lexeme);
+                } else {
+                    // Handle other cases as needed
+                }
+            }
+            // Handle the character lexeme
+            char charLexeme[2] = {currentChar, '\0'};
+            addToken(aLex, &tokenIndex, BINOP, charLexeme);
+        } else if (!isspace(currentChar)) {
+            // Handle non-space characters
+            // Add the character to the lexeme
+            lexeme[lexemeIndex++] = currentChar;
+            inLexeme = TRUE;
+        } else if (inLexeme) {
+            // We were in the middle of a lexeme, but we encountered whitespace
+            lexeme[lexemeIndex] = '\0'; // Null-terminate the lexeme
+            inLexeme = FALSE;
+            // Tokenize the lexeme and add it to aLex
+            if (validNumber(lexeme)) {
+                addToken(aLex, &tokenIndex, NUMBER, lexeme);
+            } else if (validIdentifier(lexeme)) {
+                addToken(aLex, &tokenIndex, IDENTIFIER, lexeme);
+            } else {
+                // Handle other cases as needed
             }
         }
-        // Handle identifiers
-        else if (isalpha(ch)) {
-            if (!tokenizeIdentifier(aLex, &lexIndex, inf)) {
-                return FALSE; // Invalid identifier
-            }
-        }
-        // Handle binary operators and other characters
-        else if (isBinOp(ch)) {
-            aLex[lexIndex].lexeme[0] = ch;
-            aLex[lexIndex].lexeme[1] = '\0';
-            aLex[lexIndex].token = BINOP;
-            lexIndex++;
-        } else if (ch == '(') {
-            aLex[lexIndex].lexeme[0] = ch;
-            aLex[lexIndex].lexeme[1] = '\0';
-            aLex[lexIndex].token = LEFT_PARENTHESIS;
-            lexIndex++;
-        } else if (ch == ')') {
-            aLex[lexIndex].lexeme[0] = ch;
-            aLex[lexIndex].lexeme[1] = '\0';
-            aLex[lexIndex].token = RIGHT_PARENTHESIS;
-            lexIndex++;
-        } else if (ch == '{') {
-            aLex[lexIndex].lexeme[0] = ch;
-            aLex[lexIndex].lexeme[1] = '\0';
-            aLex[lexIndex].token = LEFT_BRACKET;
-            lexIndex++;
-        } else if (ch == '}') {
-            aLex[lexIndex].lexeme[0] = ch;
-            aLex[lexIndex].lexeme[1] = '\0';
-            aLex[lexIndex].token = RIGHT_BRACKET;
-            lexIndex++;
-        } else if (ch == ',') {
-            aLex[lexIndex].lexeme[0] = ch;
-            aLex[lexIndex].lexeme[1] = '\0';
-            aLex[lexIndex].token = COMMA;
-            lexIndex++;
-        } else if (ch == ';') {
-            aLex[lexIndex].lexeme[0] = ch;
-            aLex[lexIndex].lexeme[1] = '\0';
-            aLex[lexIndex].token = EOL;
-            lexIndex++;
-        } else if (ch == '=') {
-            aLex[lexIndex].lexeme[0] = ch;
-            aLex[lexIndex].lexeme[1] = '\0';
-            aLex[lexIndex].token = EQUAL;
-            lexIndex++;
+    }
+
+    // Check if there is a lexeme remaining
+    if (inLexeme) {
+        lexeme[lexemeIndex] = '\0'; // Null-terminate the lexeme
+        // Tokenize the lexeme and add it to aLex
+        if (validNumber(lexeme)) {
+            addToken(aLex, &tokenIndex, NUMBER, lexeme);
+        } else if (validIdentifier(lexeme)) {
+            addToken(aLex, &tokenIndex, IDENTIFIER, lexeme);
         } else {
-            return FALSE; // Invalid character
+            // Handle other cases as needed
         }
     }
 
-    // Update the number of lexics
-    *numLex = lexIndex;
-
-    // Return TRUE if tokenization is successful
-    return TRUE;
-}
-
-int main(int argc, char *argv[]) {
-    if (argc != 2) {
-        fprintf(stderr, "Usage: %s <input_file>\n", argv[0]);
-        return 1;
-    }
-
-    FILE *inf = fopen(argv[1], "r");
-    if (inf == NULL) {
-        fprintf(stderr, "Error opening file: %s\n", argv[1]);
-        return 1;
-    }
-
-    struct lexics aLex[100];  // Adjust the array size as needed
-    int numLex;
-
-    if (tokenizer(aLex, &numLex, inf)) {
-        for (int i = 0; i < numLex; i++) {
-            printf("Token: %d, Lexeme: %s\n", aLex[i].token, aLex[i].lexeme);
-        }
-    } else {
-        fprintf(stderr, "Tokenization failed.\n");
-    }
-
-    fclose(inf);
-    return 0;
+    *numLex = tokenIndex; // Update the number of tokens
+    return TRUE; // Return TRUE upon successful tokenization
 }

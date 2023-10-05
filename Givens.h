@@ -22,6 +22,7 @@ enum token{ LEFT_PARENTHESIS,
 			VARTYPE,
 			IDENTIFIER,
 			BINOP,
+			WHITESPACE,
 			NUMBER
 		   };
 
@@ -32,8 +33,5 @@ struct lexics{
 
 _Bool validNumber(char* aLexeme);
 _Bool validIdentifier(char * aLexeme);
-
-//Stuck on file I/O? Research fgets! 
-//fgets(input, MY_CHAR_MAX, inf) != NULL
 
 #endif
