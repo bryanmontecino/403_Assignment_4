@@ -1,77 +1,196 @@
-#include "Tokenizer.h"
 #include "Givens.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
-// Helper function to add a token to the lexics array
-static void addToken(struct lexics *aLex, int *numLex, enum token token, const char *lexeme) {
-    aLex[*numLex].token = token;
-    strcpy(aLex[*numLex].lexeme, lexeme);
-    (*numLex)++;
+#define INVALID -1
+#define MAX_LEX 1000 // or any appropriate value
+
+// Structure to represent a token
+typedef struct {
+    enum token type; // Use the enum from Givens.h for token types
+    char lexeme[LEXEME_MAX]; // Adjust the size as needed
+} Token;
+
+// Function to check if a character is a valid alphanumeric character
+int isAlphanumeric(char c) {
+    return isalnum(c) || c == '_';
 }
 
-_Bool tokenizer(struct lexics *aLex, int *numLex, FILE *inf) {
-    char currentChar;
-    int lexemeIndex = 0;
-    int tokenIndex = 0;
-    _Bool inLexeme = FALSE;
+// Function to tokenize the input text
+_Bool tokenizer(struct lexics *aLex, int *numLex, FILE *file) {
+    char c;
     char lexeme[LEXEME_MAX];
+    int lexemeIndex = 0;
 
-    // Define character lexemes
-    const char* characterLexemes = "();{}";
+    // Skip whitespace and comments
+    while (1) {
+        c = fgetc(file);
 
-    while ((currentChar = fgetc(inf)) != EOF) {
-        if (strchr(characterLexemes, currentChar) != NULL) {
-            // If it's a character lexeme, treat it as a separator
-            if (inLexeme) {
-                lexeme[lexemeIndex] = '\0'; // Null-terminate the lexeme
-                inLexeme = FALSE;
-                // Tokenize the lexeme and add it to aLex
-                if (validNumber(lexeme)) {
-                    addToken(aLex, &tokenIndex, NUMBER, lexeme);
-                } else if (validIdentifier(lexeme)) {
-                    addToken(aLex, &tokenIndex, IDENTIFIER, lexeme);
-                } else {
-                    // Handle other cases as needed
-                }
-            }
-            // Handle the character lexeme
-            char charLexeme[2] = {currentChar, '\0'};
-            addToken(aLex, &tokenIndex, BINOP, charLexeme);
-        } else if (currentChar == ' ' || currentChar == '\t' || currentChar == '\n') {
-            // If it's a space, tab, or newline, treat it as a separator
-            if (inLexeme) {
-                lexeme[lexemeIndex] = '\0'; // Null-terminate the lexeme
-                inLexeme = FALSE;
-                // Tokenize the lexeme and add it to aLex
-                if (validNumber(lexeme)) {
-                    addToken(aLex, &tokenIndex, NUMBER, lexeme);
-                } else if (validIdentifier(lexeme)) {
-                    addToken(aLex, &tokenIndex, IDENTIFIER, lexeme);
-                } else {
-                    // Handle other cases as needed
-                }
-            }
-        } else {
-            // Handle non-space characters
-            lexeme[lexemeIndex++] = currentChar;
-            inLexeme = TRUE;
+        // Skip whitespace
+        while (isspace(c)) {
+            c = fgetc(file);
         }
+
+        // Handle comments
+        if (c == '/') {
+            c = fgetc(file);
+            if (c == '/') {
+                // Single-line comment, skip until EOL
+                while ((c = fgetc(file)) != '\n' && c != EOF);
+                continue;
+            } else {
+                // Not a comment, push back the character
+                ungetc('/', file);
+            }
+        }
+        break;
     }
 
-    // Check if there is a lexeme remaining
-    if (inLexeme) {
-        lexeme[lexemeIndex] = '\0'; // Null-terminate the lexeme
-        // Tokenize the lexeme and add it to aLex
+    if (c == EOF) {
+        aLex[*numLex].token = INVALID;
+        strcpy(aLex[*numLex].lexeme, "EOF");
+        (*numLex)++;
+        return FALSE;
+    }
+
+    // Check for single-character tokens
+    switch (c) {
+        case '(':
+            aLex[*numLex].token = LEFT_PARENTHESIS;
+            strcpy(aLex[*numLex].lexeme, "(");
+            (*numLex)++;
+            return TRUE;
+        case ')':
+            aLex[*numLex].token = RIGHT_PARENTHESIS;
+            strcpy(aLex[*numLex].lexeme, ")");
+            (*numLex)++;
+            return TRUE;
+        case '{':
+            aLex[*numLex].token = LEFT_BRACKET;
+            strcpy(aLex[*numLex].lexeme, "{");
+            (*numLex)++;
+            return TRUE;
+        case '}':
+            aLex[*numLex].token = RIGHT_BRACKET;
+            strcpy(aLex[*numLex].lexeme, "}");
+            (*numLex)++;
+            return TRUE;
+        case '=':
+            aLex[*numLex].token = EQUAL;
+            strcpy(aLex[*numLex].lexeme, "=");
+            (*numLex)++;
+            return TRUE;
+        case ',':
+            aLex[*numLex].token = COMMA;
+            strcpy(aLex[*numLex].lexeme, ",");
+            (*numLex)++;
+            return TRUE;
+        case ';':
+            aLex[*numLex].token = EOL;
+            strcpy(aLex[*numLex].lexeme, ";");
+            (*numLex)++;
+            return TRUE;
+    }
+
+    // Check for operators
+    if (c == '+' || c == '*' || c == '%' || (c == '!' && fgetc(file) == '=')) {
+        lexeme[lexemeIndex++] = c;
+        if (c == '!' && lexemeIndex == 1) {
+            // != operator
+            lexeme[lexemeIndex++] = '=';
+        }
+        lexeme[lexemeIndex] = '\0';
+        aLex[*numLex].token = BINOP;
+        strcpy(aLex[*numLex].lexeme, lexeme);
+        (*numLex)++;
+        return TRUE;
+    }
+
+    // Check for numbers
+    if (isdigit(c)) {
+        while (isdigit(c)) {
+            lexeme[lexemeIndex++] = c;
+            c = fgetc(file);
+        }
+        lexeme[lexemeIndex] = '\0';
+        ungetc(c, file); // Push back the last non-digit character
         if (validNumber(lexeme)) {
-            addToken(aLex, &tokenIndex, NUMBER, lexeme);
-        } else if (validIdentifier(lexeme)) {
-            addToken(aLex, &tokenIndex, IDENTIFIER, lexeme);
+            aLex[*numLex].token = NUMBER;
+            strcpy(aLex[*numLex].lexeme, lexeme);
+            (*numLex)++;
+            return TRUE;
         } else {
-            // Handle other cases as needed
+            aLex[*numLex].token = INVALID;
+            sprintf(aLex[*numLex].lexeme, "Invalid number: %s", lexeme);
+            (*numLex)++;
+            return FALSE;
         }
     }
 
-    *numLex = tokenIndex; // Update the number of tokens
-    return TRUE; // Return TRUE upon successful tokenization
+    // Check for keywords or identifiers
+    if (isalpha(c)) {
+        while (isAlphanumeric(c)) {
+            lexeme[lexemeIndex++] = c;
+            c = fgetc(file);
+        }
+        lexeme[lexemeIndex] = '\0';
+        ungetc(c, file); // Push back the last non-alphanumeric character
+        if (validIdentifier(lexeme)) {
+            if (strcmp(lexeme, "while") == 0) {
+                aLex[*numLex].token = WHILE_KEYWORD;
+                strcpy(aLex[*numLex].lexeme, "while");
+            } else if (strcmp(lexeme, "return") == 0) {
+                aLex[*numLex].token = RETURN_KEYWORD;
+                strcpy(aLex[*numLex].lexeme, "return");
+            } else if (strcmp(lexeme, "int") == 0 || strcmp(lexeme, "void") == 0) {
+                aLex[*numLex].token = VARTYPE;
+                strcpy(aLex[*numLex].lexeme, lexeme);
+            } else {
+                aLex[*numLex].token = IDENTIFIER;
+                strcpy(aLex[*numLex].lexeme, lexeme);
+            }
+            (*numLex)++;
+            return TRUE;
+        } else {
+            aLex[*numLex].token = INVALID;
+            sprintf(aLex[*numLex].lexeme, "Invalid identifier: %s", lexeme);
+            (*numLex)++;
+            return FALSE;
+        }
+    }
+
+    // If none of the above cases match, it's an invalid character
+    aLex[*numLex].token = INVALID;
+    sprintf(aLex[*numLex].lexeme, "Invalid character: %c", c);
+    (*numLex)++;
+    return FALSE;
+}
+
+int main(int argc, char* argv[]) {
+    if (argc != 2) {
+        printf("Usage: %s <input_file>\n", argv[0]);
+        return 1;
+    }
+
+    FILE* file = fopen(argv[1], "r");
+    if (file == NULL) {
+        perror("Error opening file");
+        return 1;
+    }
+
+    struct lexics lexArray[MAX_LEX];
+    int numLex = 0;
+
+    printf("Tokens:\n");
+    while (tokenizer(lexArray, &numLex, file)) {
+        if (lexArray[numLex - 1].token != INVALID) {
+            printf("%d: %s\n", lexArray[numLex - 1].token, lexArray[numLex - 1].lexeme);
+        }
+    }
+
+    fclose(file);
+
+    return 0;
 }
