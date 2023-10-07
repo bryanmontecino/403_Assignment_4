@@ -1,3 +1,10 @@
+/*
+Author: Bryan Lizama Montecino
+Course: CMSC 403
+File For: Assignment 4
+Last Edited: October 7, 2023
+*/
+
 #include "Analyzer.h"
 
 int main(){
@@ -16,7 +23,6 @@ int main(){
 			printf("ERROR: file %s cannot be opened\n", filename);
 	  	}
 	}
-
 
 	struct lexics allLexics[1024];
 	int numberOfLexics = 0;

@@ -1,3 +1,10 @@
+/*
+Author: Bryan Lizama Montecino
+Course: CMSC 403
+File For: Assignment 4
+Last Edited: October 7, 2023
+*/
+
 #include "Givens.h"
 
 _Bool validNumber(char* aLexeme){
