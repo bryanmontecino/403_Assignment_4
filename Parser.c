@@ -6,6 +6,7 @@ Last Edited: October 7, 2023
 */
 
 #include "Parser.h"
+#include "Givens.h"
 #include <stdio.h>
 
 // Function to check if a lexeme matches the current token
