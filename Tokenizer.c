@@ -2,7 +2,7 @@
 Author: Bryan Lizama Montecino
 Course: CMSC 403
 File For: Assignment 4
-Last Edited: October 7, 2023
+Last Edited: October 8, 2023
 */
 
 #include "Tokenizer.h"
@@ -12,13 +12,7 @@ Last Edited: October 7, 2023
 #include <string.h>
 #include <ctype.h>
 
-#define INVALID -1
-
-// Structure to represent a token
-typedef struct {
-    enum token type; // Use the enum from Givens.h for token types
-    char lexeme[LEXEME_MAX]; // Adjust the size as needed
-} Token;
+#define INVALID 14
 
 // Function to check if a character is a valid alphanumeric character
 int isAlphanumeric(char c) {
@@ -26,151 +20,205 @@ int isAlphanumeric(char c) {
 }
 
 // Function to tokenize the input text
-_Bool tokenizer(struct lexics *aLex, int *numLex, FILE *file) {
+_Bool tokenizer(struct lexics *aLex, int *numLex, FILE *inf) {
     char c;
-    char lexeme[LEXEME_MAX];
-    int lexemeIndex = 0;
+    int lexemeIndex;
+    struct lexics token_tracker;
 
-    // Skip whitespace and comments
-    while (1) {
-        c = fgetc(file);
+    *numLex = 0; // Initialize the number of lexics to 0
 
-        // Skip whitespace
-        while (isspace(c)) {
-            c = fgetc(file);
-        }
+    while ((c = fgetc(inf)) != EOF) {
+        lexemeIndex = 0;
 
-        // Handle comments
-        if (c == '/') {
-            c = fgetc(file);
+        // Skip whitespace and comments
+        while (isspace(c) || c == '/') {
             if (c == '/') {
-                // Single-line comment, skip until EOL
-                while ((c = fgetc(file)) != '\n' && c != EOF);
-                continue;
+                if (fgetc(inf) == '/') {
+                    // Single-line comment, skip until EOL
+                    while ((c = fgetc(inf)) != '\n' && c != EOF);
+                } else {
+                    // Not a comment, push back the character
+                    ungetc('/', inf);
+                    break;
+                }
+            }
+            c = fgetc(inf);
+        }
+
+        if (c == EOF) {
+            break;
+        }
+
+        // Check for single-character tokens
+        if (c == '(') {
+            token_tracker.token = LEFT_PARENTHESIS;
+            strcpy(token_tracker.lexeme, "(");
+        } else if (c == ')') {
+            token_tracker.token = RIGHT_PARENTHESIS;
+            strcpy(token_tracker.lexeme, ")");
+        } else if (c == '{') {
+            token_tracker.token = LEFT_BRACKET;
+            strcpy(token_tracker.lexeme, "{");
+        } else if (c == '}') {
+            token_tracker.token = RIGHT_BRACKET;
+            strcpy(token_tracker.lexeme, "}");
+        } else if (c == '=') {
+            // Check if the next character is also '='
+            if (fgetc(inf) == '=') {
+                token_tracker.token = BINOP;
+                strcpy(token_tracker.lexeme, "==");
             } else {
-                // Not a comment, push back the character
-                ungetc('/', file);
+                token_tracker.token = EQUAL;
+                strcpy(token_tracker.lexeme, "=");
+                // Push back the last character, which is not part of the lexeme
+                ungetc(fgetc(inf), inf);
+            }
+        } else if (c == ',') {
+            token_tracker.token = COMMA;
+            strcpy(token_tracker.lexeme, ",");
+        } else if (c == ';') {
+            token_tracker.token = EOL;
+            strcpy(token_tracker.lexeme, ";");
+        } else if (isspace(c)) { // Handle whitespace
+            token_tracker.token = WHITESPACE;
+            token_tracker.lexeme[0] = c;
+            token_tracker.lexeme[1] = '\0';
+        } else {
+            // Check for operators
+            lexemeIndex = 0;
+            if (c == '+' || c == '*' || c == '%' || (c == '!' && fgetc(inf) == '=')) {
+                token_tracker.lexeme[lexemeIndex++] = c;
+                if (c == '!' && lexemeIndex == 1) {
+                    // != operator
+                    token_tracker.lexeme[lexemeIndex++] = '=';
+                }
+                token_tracker.lexeme[lexemeIndex] = '\0';
+                token_tracker.token = BINOP;
+            }
+            // Check for numbers
+            else if (isdigit(c)) {
+                while (isdigit(c)) {
+                    token_tracker.lexeme[lexemeIndex++] = c;
+                    c = fgetc(inf);
+                }
+                token_tracker.lexeme[lexemeIndex] = '\0';
+                ungetc(c, inf); // Push back the last non-digit character
+                token_tracker.token = NUMBER;
+            }
+            // Check for keywords or identifiers
+            else if (isalpha(c)) {
+                while (isAlphanumeric(c)) {
+                    token_tracker.lexeme[lexemeIndex++] = c;
+                    c = fgetc(inf);
+                }
+                token_tracker.lexeme[lexemeIndex] = '\0';
+                ungetc(c, inf); // Push back the last non-alphanumeric character
+                if (strcmp(token_tracker.lexeme, "while") == 0) {
+                    token_tracker.token = WHILE_KEYWORD;
+                } else if (strcmp(token_tracker.lexeme, "return") == 0) {
+                    token_tracker.token = RETURN_KEYWORD;
+                } else if (strcmp(token_tracker.lexeme, "int") == 0 || strcmp(token_tracker.lexeme, "void") == 0) {
+                    token_tracker.token = VARTYPE;
+                } else {
+                    token_tracker.token = IDENTIFIER;
+                }
+            } else {
+                // If none of the above cases match, it's an invalid character
+                token_tracker.token = INVALID;
+                sprintf(token_tracker.lexeme, "Invalid character: %c", c);
             }
         }
-        break;
-    }
 
-    if (c == EOF) {
-        aLex[*numLex].token = INVALID;
-        strcpy(aLex[*numLex].lexeme, "EOF");
-        (*numLex)++;
-        return FALSE;
-    }
-
-    // Check for single-character tokens
-    switch (c) {
-        case '(':
-            aLex[*numLex].token = LEFT_PARENTHESIS;
-            strcpy(aLex[*numLex].lexeme, "(");
-            (*numLex)++;
-            return TRUE;
-        case ')':
-            aLex[*numLex].token = RIGHT_PARENTHESIS;
-            strcpy(aLex[*numLex].lexeme, ")");
-            (*numLex)++;
-            return TRUE;
-        case '{':
-            aLex[*numLex].token = LEFT_BRACKET;
-            strcpy(aLex[*numLex].lexeme, "{");
-            (*numLex)++;
-            return TRUE;
-        case '}':
-            aLex[*numLex].token = RIGHT_BRACKET;
-            strcpy(aLex[*numLex].lexeme, "}");
-            (*numLex)++;
-            return TRUE;
-        case '=':
-            aLex[*numLex].token = EQUAL;
-            strcpy(aLex[*numLex].lexeme, "=");
-            (*numLex)++;
-            return TRUE;
-        case ',':
-            aLex[*numLex].token = COMMA;
-            strcpy(aLex[*numLex].lexeme, ",");
-            (*numLex)++;
-            return TRUE;
-        case ';':
-            aLex[*numLex].token = EOL;
-            strcpy(aLex[*numLex].lexeme, ";");
-            (*numLex)++;
-            return TRUE;
-    }
-
-    // Check for operators
-    if (c == '+' || c == '*' || c == '%' || (c == '!' && fgetc(file) == '=')) {
-        lexeme[lexemeIndex++] = c;
-        if (c == '!' && lexemeIndex == 1) {
-            // != operator
-            lexeme[lexemeIndex++] = '=';
-        }
-        lexeme[lexemeIndex] = '\0';
-        aLex[*numLex].token = BINOP;
-        strcpy(aLex[*numLex].lexeme, lexeme);
-        (*numLex)++;
-        return TRUE;
-    }
-
-    // Check for numbers
-    if (isdigit(c)) {
-        while (isdigit(c)) {
-            lexeme[lexemeIndex++] = c;
-            c = fgetc(file);
-        }
-        lexeme[lexemeIndex] = '\0';
-        ungetc(c, file); // Push back the last non-digit character
-        if (validNumber(lexeme)) {
-            aLex[*numLex].token = NUMBER;
-            strcpy(aLex[*numLex].lexeme, lexeme);
-            (*numLex)++;
-            return TRUE;
+        // Store the token in the array
+        if (*numLex < 1000) {
+            aLex[*numLex] = token_tracker; // Copy the token_tracker into the array
+            (*numLex)++; // Increment the number of lexemes
         } else {
-            aLex[*numLex].token = INVALID;
-            sprintf(aLex[*numLex].lexeme, "Invalid number: %s", lexeme);
-            (*numLex)++;
-            return FALSE;
+            printf("Maximum number of lexemes reached.\n");
+            return 0;
         }
     }
+    return 1;
+}
 
-    // Check for keywords or identifiers
-    if (isalpha(c)) {
-        while (isAlphanumeric(c)) {
-            lexeme[lexemeIndex++] = c;
-            c = fgetc(file);
-        }
-        lexeme[lexemeIndex] = '\0';
-        ungetc(c, file); // Push back the last non-alphanumeric character
-        if (validIdentifier(lexeme)) {
-            if (strcmp(lexeme, "while") == 0) {
-                aLex[*numLex].token = WHILE_KEYWORD;
-                strcpy(aLex[*numLex].lexeme, "while");
-            } else if (strcmp(lexeme, "return") == 0) {
-                aLex[*numLex].token = RETURN_KEYWORD;
-                strcpy(aLex[*numLex].lexeme, "return");
-            } else if (strcmp(lexeme, "int") == 0 || strcmp(lexeme, "void") == 0) {
-                aLex[*numLex].token = VARTYPE;
-                strcpy(aLex[*numLex].lexeme, lexeme);
-            } else {
-                aLex[*numLex].token = IDENTIFIER;
-                strcpy(aLex[*numLex].lexeme, lexeme);
-            }
-            (*numLex)++;
-            return TRUE;
-        } else {
-            aLex[*numLex].token = INVALID;
-            sprintf(aLex[*numLex].lexeme, "Invalid identifier: %s", lexeme);
-            (*numLex)++;
-            return FALSE;
-        }
+const char* tokenEnumToString(enum token aToken) {
+	if(aToken == LEFT_PARENTHESIS){
+		return "LEFT_PARENTHESIS";
+	}
+	else if(aToken == RIGHT_PARENTHESIS){
+		return "RIGHT_PARENTHESIS";
+	}
+	else if(aToken == LEFT_BRACKET){
+		return "LEFT_BRACKET";
+	}
+	else if(aToken == RIGHT_BRACKET){
+		return "RIGHT_BRACKET";
+	}
+	else if(aToken == WHILE_KEYWORD){
+		return "WHILE_KEYWORD";
+	}
+	else if(aToken == RETURN_KEYWORD){
+		return "RETURN_KEYWORD";
+	}
+	else if(aToken == EQUAL){
+		return "EQUAL";
+	}
+	else if(aToken == COMMA){
+		return "COMMA";
+	}
+	else if(aToken == EOL){
+		return "EOL";
+	}
+	else if(aToken == VARTYPE){
+		return "VARTYPE";
+	}
+	else if(aToken == IDENTIFIER){
+		return "IDENTIFIER";
+	}
+	else if(aToken == BINOP){
+		return "BINOP";
+	}
+	else if(aToken == WHITESPACE){
+		return "WHITESPACE";
+	}
+	else if(aToken == NUMBER){
+		return "NUMBER";
+	}
+	else{
+		return "ERROR-INVALID_TOKEN";
+	}
+}
+
+int main(int argc, char* argv[]) {
+    if (argc != 2) {
+        printf("Usage: %s <input_file>\n", argv[0]);
+        return 1;
     }
 
-    // If none of the above cases match, it's an invalid character
-    aLex[*numLex].token = INVALID;
-    sprintf(aLex[*numLex].lexeme, "Invalid character: %c", c);
-    (*numLex)++;
-    return FALSE;
+    FILE* file = fopen(argv[1], "r");
+    if (file == NULL) {
+        perror("Error opening file");
+        return 1;
+    }
+
+    struct lexics allLexics[1000]; // Declare an array of struct lexics
+    int numberOfLexics = 0;
+    _Bool success = tokenizer(allLexics, &numberOfLexics, file); // Pass the array
+
+    printf("Did tokenize: %d\n", success);
+    printf("Number of lexemes: %d\n", numberOfLexics);
+    printf("Lexemes: ");
+    for (int i = 0; i < numberOfLexics; i++) {
+        printf("%s  ", allLexics[i].lexeme); // Access members correctly
+    }
+    printf("\nTokens: ");
+    for (int i = 0; i < numberOfLexics; i++) {
+        printf("%s  ", tokenEnumToString(allLexics[i].token)); // Access members correctly
+    }
+
+    printf("\n");
+
+    fclose(file);
+
+    return 0;
 }
