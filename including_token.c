@@ -1,39 +1,18 @@
+/*
+Author: Bryan Lizama Montecino
+Course: CMSC 403
+File For: Assignment 4
+Last Edited: October 8, 2023
+*/
+
+#include "including_token.h"
+#include "Givens.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
 
-// Define token types
-typedef enum {
-    LEFT_PARENTHESIS,
-    RIGHT_PARENTHESIS,
-    LEFT_BRACKET,
-    RIGHT_BRACKET,
-    WHILE_KEYWORD,
-    RETURN_KEYWORD,
-    EQUAL,
-    COMMA,
-    EOL,
-    VARTYPE,
-    IDENTIFIER,
-    BINOP,
-    WHITESPACE,
-    NUMBER
-} TokenType;
-
 #define INVALID 14
-
-// Structure to represent a token
-typedef struct {
-    TokenType type;
-    char lexeme[100]; // Adjust the size as needed
-} Token;
-
-// Structure to hold lexics and the number of lexics
-struct Lexics {
-    Token allLexics[1000]; // Adjust the array size as needed
-    int numberOfLexics;
-};
 
 // Function to check if a character is a valid alphanumeric character
 int isAlphanumeric(char c) {
@@ -41,16 +20,24 @@ int isAlphanumeric(char c) {
 }
 
 // Function to tokenize the input text
-_Bool tokenizer(struct Lexics *aLex, int *numLex, FILE *inf) {
+_Bool tokenizer(struct lexics *aLex, int *numLex, FILE *inf) {
     char c;
     int lexemeIndex;
-    Token token;
-    
+    struct lexics token_tracker;
+
     *numLex = 0; // Initialize the number of lexics to 0
 
     while ((c = fgetc(inf)) != EOF) {
         lexemeIndex = 0;
-        
+
+        /*
+        // Check if the lexeme size exceeds MY_CHAR_MAX
+        if (lexemeIndex >= MY_CHAR_MAX) {
+            printf("Lexeme size exceeds MY_CHAR_MAX, cannot tokenize further.\n");
+            return 0;
+        }
+        */
+
         // Skip whitespace and comments
         while (isspace(c) || c == '/') {
             if (c == '/') {
@@ -72,98 +59,96 @@ _Bool tokenizer(struct Lexics *aLex, int *numLex, FILE *inf) {
 
         // Check for single-character tokens
         if (c == '(') {
-            token.type = LEFT_PARENTHESIS;
-            strcpy(token.lexeme, "(");
+            token_tracker.token = LEFT_PARENTHESIS;
+            strcpy(token_tracker.lexeme, "(");
         } else if (c == ')') {
-            token.type = RIGHT_PARENTHESIS;
-            strcpy(token.lexeme, ")");
+            token_tracker.token = RIGHT_PARENTHESIS;
+            strcpy(token_tracker.lexeme, ")");
         } else if (c == '{') {
-            token.type = LEFT_BRACKET;
-            strcpy(token.lexeme, "{");
+            token_tracker.token = LEFT_BRACKET;
+            strcpy(token_tracker.lexeme, "{");
         } else if (c == '}') {
-            token.type = RIGHT_BRACKET;
-            strcpy(token.lexeme, "}");
+            token_tracker.token = RIGHT_BRACKET;
+            strcpy(token_tracker.lexeme, "}");
         } else if (c == '=') {
             // Check if the next character is also '='
             if (fgetc(inf) == '=') {
-                token.type = BINOP;
-                strcpy(token.lexeme, "==");
+                token_tracker.token = BINOP;
+                strcpy(token_tracker.lexeme, "==");
             } else {
-                token.type = EQUAL;
-                strcpy(token.lexeme, "=");
+                token_tracker.token = EQUAL;
+                strcpy(token_tracker.lexeme, "=");
                 // Push back the last character, which is not part of the lexeme
                 ungetc(fgetc(inf), inf);
             }
         } else if (c == ',') {
-            token.type = COMMA;
-            strcpy(token.lexeme, ",");
+            token_tracker.token = COMMA;
+            strcpy(token_tracker.lexeme, ",");
         } else if (c == ';') {
-            token.type = EOL;
-            strcpy(token.lexeme, ";");
+            token_tracker.token = EOL;
+            strcpy(token_tracker.lexeme, ";");
         } else if (isspace(c)) { // Handle whitespace
-            token.type = WHITESPACE;
-            token.lexeme[0] = c;
-            token.lexeme[1] = '\0';
+            token_tracker.token = WHITESPACE;
+            token_tracker.lexeme[0] = c;
+            token_tracker.lexeme[1] = '\0';
         } else {
             // Check for operators
             lexemeIndex = 0;
             if (c == '+' || c == '*' || c == '%' || (c == '!' && fgetc(inf) == '=')) {
-                token.lexeme[lexemeIndex++] = c;
-                if (c == '!' && lexemeIndex == 1) {
-                    // != operator
-                    token.lexeme[lexemeIndex++] = '=';
+                while (lexemeIndex < LEXEME_MAX - 1 && (c == '+' || c == '*' || c == '%' || (c == '!' && fgetc(inf) == '='))) {
+                    token_tracker.lexeme[lexemeIndex++] = c;
+                    c = fgetc(inf);
                 }
-                token.lexeme[lexemeIndex] = '\0';
-                token.type = BINOP;
+                token_tracker.lexeme[lexemeIndex] = '\0';
+                token_tracker.token = BINOP;
             }
             // Check for numbers
             else if (isdigit(c)) {
                 while (isdigit(c)) {
-                    token.lexeme[lexemeIndex++] = c;
+                    token_tracker.lexeme[lexemeIndex++] = c;
                     c = fgetc(inf);
                 }
-                token.lexeme[lexemeIndex] = '\0';
+                token_tracker.lexeme[lexemeIndex] = '\0';
                 ungetc(c, inf); // Push back the last non-digit character
-                token.type = NUMBER;
+                token_tracker.token = NUMBER;
             }
             // Check for keywords or identifiers
             else if (isalpha(c)) {
                 while (isAlphanumeric(c)) {
-                    token.lexeme[lexemeIndex++] = c;
+                    token_tracker.lexeme[lexemeIndex++] = c;
                     c = fgetc(inf);
                 }
-                token.lexeme[lexemeIndex] = '\0';
+                token_tracker.lexeme[lexemeIndex] = '\0';
                 ungetc(c, inf); // Push back the last non-alphanumeric character
-                if (strcmp(token.lexeme, "while") == 0) {
-                    token.type = WHILE_KEYWORD;
-                } else if (strcmp(token.lexeme, "return") == 0) {
-                    token.type = RETURN_KEYWORD;
-                } else if (strcmp(token.lexeme, "int") == 0 || strcmp(token.lexeme, "void") == 0) {
-                    token.type = VARTYPE;
+                if (strcmp(token_tracker.lexeme, "while") == 0) {
+                    token_tracker.token = WHILE_KEYWORD;
+                } else if (strcmp(token_tracker.lexeme, "return") == 0) {
+                    token_tracker.token = RETURN_KEYWORD;
+                } else if (strcmp(token_tracker.lexeme, "int") == 0 || strcmp(token_tracker.lexeme, "void") == 0) {
+                    token_tracker.token = VARTYPE;
                 } else {
-                    token.type = IDENTIFIER;
+                    token_tracker.token = IDENTIFIER;
                 }
             } else {
                 // If none of the above cases match, it's an invalid character
-                token.type = INVALID;
-                sprintf(token.lexeme, "Invalid character: %c", c);
+                token_tracker.token = INVALID;
+                sprintf(token_tracker.lexeme, "Invalid character: %c", c);
             }
         }
 
         // Store the token in the array
-        if (*numLex < 1000) { // Adjust the limit as needed
-            aLex->allLexics[*numLex] = token;
-            (*numLex)++;
+        if (*numLex < 1000) {
+            aLex[*numLex] = token_tracker; // Copy the token_tracker into the array
+            (*numLex)++; // Increment the number of lexemes
         } else {
-            printf("Too many tokens, cannot tokenize further.\n");
+            printf("Maximum number of lexemes reached.\n");
             return 0;
         }
     }
-
     return 1;
 }
 
-const char* tokenEnumToString(TokenType aToken) {
+const char* tokenEnumToString(enum token aToken) {
 	if(aToken == LEFT_PARENTHESIS){
 		return "LEFT_PARENTHESIS";
 	}
@@ -223,19 +208,19 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    struct Lexics allLexics;
+    struct lexics allLexics[1000]; // Declare an array of struct lexics
     int numberOfLexics = 0;
-    _Bool success = tokenizer(&allLexics, &numberOfLexics, file);
+    _Bool success = tokenizer(allLexics, &numberOfLexics, file); // Pass the array
 
     printf("Did tokenize: %d\n", success);
     printf("Number of lexemes: %d\n", numberOfLexics);
     printf("Lexemes: ");
     for (int i = 0; i < numberOfLexics; i++) {
-        printf("%s  ", allLexics.allLexics[i].lexeme);
+        printf("%s  ", allLexics[i].lexeme); // Access members correctly
     }
     printf("\nTokens: ");
     for (int i = 0; i < numberOfLexics; i++) {
-        printf("%s  ", tokenEnumToString(allLexics.allLexics[i].type));
+        printf("%s  ", tokenEnumToString(allLexics[i].token)); // Access members correctly
     }
 
     printf("\n");
