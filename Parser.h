@@ -2,7 +2,7 @@
 Author: Bryan Lizama Montecino
 Course: CMSC 403
 File For: Assignment 4
-Last Edited: October 7, 2023
+Last Edited: October 8, 2023
 
 Purpose of Assignment:
 - Take a text file as input

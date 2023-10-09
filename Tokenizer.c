@@ -19,31 +19,29 @@ Purpose of Assignment:
 
 #define INVALID 14
 
-// Verify if a character is a valid alphanumeric character
+// Verify if a character is a letter, digit, or underscore
 int isAlphanumeric(char c) {
-    // letter, digit, or underscore
     return isalnum(c) || c == '_';
 }
 
-// Function to tokenize the input text
+// Tokenize the input text
 _Bool tokenizer(struct lexics *aLex, int *numLex, FILE *inf) {
     char c;
     int lexemeIndex;
     struct lexics token_tracker;
 
-    *numLex = 0; // Initialize the number of lexemes to 0
+    *numLex = 0;
 
     while ((c = fgetc(inf)) != EOF) {
         lexemeIndex = 0;
 
-        // Skip whitespace and comments
+        // Skip whitespace, along with not worrying about comments
         while (isspace(c) || c == '/') {
             if (c == '/') {
                 if (fgetc(inf) == '/') {
-                    // Single-line comment, skip until the end of the line.
+                    // Skip until the end of the line
                     while ((c = fgetc(inf)) != '\n' && c != EOF);
                 } else {
-                    // Not a comment, push back the character.
                     ungetc('/', inf);
                     break;
                 }
@@ -55,7 +53,7 @@ _Bool tokenizer(struct lexics *aLex, int *numLex, FILE *inf) {
             break;
         }
 
-        // Check for single-character tokens
+        // Look for single character tokens from the input
         if (c == '(') {
             token_tracker.token = LEFT_PARENTHESIS;
             strcpy(token_tracker.lexeme, "(");
@@ -106,16 +104,16 @@ _Bool tokenizer(struct lexics *aLex, int *numLex, FILE *inf) {
                     c = fgetc(inf);
                 }
                 token_tracker.lexeme[lexemeIndex] = '\0';
-                ungetc(c, inf); // Push back the last non-digit character
+                ungetc(c, inf);
                 token_tracker.token = NUMBER;
             } else if (isalpha(c)) {
-                // Check for keywords or identifiers
+                // Check with the input for keywords or identifiers
                 while (isAlphanumeric(c)) {
                     token_tracker.lexeme[lexemeIndex++] = c;
                     c = fgetc(inf);
                 }
                 token_tracker.lexeme[lexemeIndex] = '\0';
-                ungetc(c, inf); // Push back the last non-alphanumeric character
+                ungetc(c, inf);
                 if (strcmp(token_tracker.lexeme, "while") == 0) {
                     token_tracker.token = WHILE_KEYWORD;
                 } else if (strcmp(token_tracker.lexeme, "return") == 0) {
