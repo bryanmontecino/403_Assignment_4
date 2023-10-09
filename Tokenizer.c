@@ -3,10 +3,15 @@ Author: Bryan Lizama Montecino
 Course: CMSC 403
 File For: Assignment 4
 Last Edited: October 8, 2023
+
+Purpose of Assignment:
+- Take a text file as input
+- Tokenize the given input
+- Parse the tokenized input to determine if it is grammatically valid 
 */
 
-#include "Tokenizer.h"
 #include "Givens.h"
+#include "Tokenizer.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
