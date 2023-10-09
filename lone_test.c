@@ -140,3 +140,85 @@ _Bool tokenizer(struct lexics *aLex, int *numLex, FILE *inf) {
     }
     return 1;
 }
+
+const char* tokenEnumToString(enum token aToken) {
+	if(aToken == LEFT_PARENTHESIS){
+		return "LEFT_PARENTHESIS";
+	}
+	else if(aToken == RIGHT_PARENTHESIS){
+		return "RIGHT_PARENTHESIS";
+	}
+	else if(aToken == LEFT_BRACKET){
+		return "LEFT_BRACKET";
+	}
+	else if(aToken == RIGHT_BRACKET){
+		return "RIGHT_BRACKET";
+	}
+	else if(aToken == WHILE_KEYWORD){
+		return "WHILE_KEYWORD";
+	}
+	else if(aToken == RETURN_KEYWORD){
+		return "RETURN_KEYWORD";
+	}
+	else if(aToken == EQUAL){
+		return "EQUAL";
+	}
+	else if(aToken == COMMA){
+		return "COMMA";
+	}
+	else if(aToken == EOL){
+		return "EOL";
+	}
+	else if(aToken == VARTYPE){
+		return "VARTYPE";
+	}
+	else if(aToken == IDENTIFIER){
+		return "IDENTIFIER";
+	}
+	else if(aToken == BINOP){
+		return "BINOP";
+	}
+	else if(aToken == WHITESPACE){
+		return "WHITESPACE";
+	}
+	else if(aToken == NUMBER){
+		return "NUMBER";
+	}
+	else{
+		return "ERROR-INVALID_TOKEN";
+	}
+}
+
+int main(int argc, char* argv[]) {
+    if (argc != 2) {
+        printf("Usage: %s <input_file>\n", argv[0]);
+        return 1;
+    }
+
+    FILE* file = fopen(argv[1], "r");
+    if (file == NULL) {
+        perror("Error opening file");
+        return 1;
+    }
+
+    struct lexics allLexics[1000]; // Declare an array of struct lexics
+    int numberOfLexics = 0;
+    _Bool success = tokenizer(allLexics, &numberOfLexics, file); // Pass the array
+
+    printf("Did tokenize: %d\n", success);
+    printf("Number of lexemes: %d\n", numberOfLexics);
+    printf("Lexemes: ");
+    for (int i = 0; i < numberOfLexics; i++) {
+        printf("%s  ", allLexics[i].lexeme); // Access members correctly
+    }
+    printf("\nTokens: ");
+    for (int i = 0; i < numberOfLexics; i++) {
+        printf("%s  ", tokenEnumToString(allLexics[i].token)); // Access members correctly
+    }
+
+    printf("\n");
+
+    fclose(file);
+
+    return 0;
+}

@@ -17,7 +17,4 @@ int isAlphanumeric(char c);
 // Function to tokenize the input text
 _Bool tokenizer(struct lexics *aLex, int *numLex, FILE *inf);
 
-// Function to convert a token type to a string
-const char* tokenEnumToString(enum token aToken);
-
 #endif
