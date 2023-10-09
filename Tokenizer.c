@@ -19,8 +19,9 @@ Purpose of Assignment:
 
 #define INVALID 14
 
-// Function to check if a character is a valid alphanumeric character
+// Verify if a character is a valid alphanumeric character
 int isAlphanumeric(char c) {
+    // letter, digit, or underscore
     return isalnum(c) || c == '_';
 }
 
@@ -30,7 +31,7 @@ _Bool tokenizer(struct lexics *aLex, int *numLex, FILE *inf) {
     int lexemeIndex;
     struct lexics token_tracker;
 
-    *numLex = 0; // Initialize the number of lexics to 0
+    *numLex = 0; // Initialize the number of lexemes to 0
 
     while ((c = fgetc(inf)) != EOF) {
         lexemeIndex = 0;
@@ -39,10 +40,10 @@ _Bool tokenizer(struct lexics *aLex, int *numLex, FILE *inf) {
         while (isspace(c) || c == '/') {
             if (c == '/') {
                 if (fgetc(inf) == '/') {
-                    // Single-line comment, skip until EOL
+                    // Single-line comment, skip until the end of the line.
                     while ((c = fgetc(inf)) != '\n' && c != EOF);
                 } else {
-                    // Not a comment, push back the character
+                    // Not a comment, push back the character.
                     ungetc('/', inf);
                     break;
                 }
@@ -68,14 +69,14 @@ _Bool tokenizer(struct lexics *aLex, int *numLex, FILE *inf) {
             token_tracker.token = RIGHT_BRACKET;
             strcpy(token_tracker.lexeme, "}");
         } else if (c == '=') {
-            // Check if the next character is also '='
+            // Is the next character also '='?
             if (fgetc(inf) == '=') {
                 token_tracker.token = BINOP;
                 strcpy(token_tracker.lexeme, "==");
             } else {
                 token_tracker.token = EQUAL;
                 strcpy(token_tracker.lexeme, "=");
-                // Push back the last character, which is not part of the lexeme
+                // Push back the last character, which is not part of the lexeme.
                 ungetc(fgetc(inf), inf);
             }
         } else if (c == ',') {
@@ -84,24 +85,22 @@ _Bool tokenizer(struct lexics *aLex, int *numLex, FILE *inf) {
         } else if (c == ';') {
             token_tracker.token = EOL;
             strcpy(token_tracker.lexeme, ";");
-        } else if (isspace(c)) { // Handle whitespace
-            token_tracker.token = WHITESPACE;
-            token_tracker.lexeme[0] = c;
-            token_tracker.lexeme[1] = '\0';
+        } else if (isspace(c)) {
+            // Handle whitespace (no specific token, skip it).
+            continue;
         } else {
             // Check for operators
             lexemeIndex = 0;
             if (c == '+' || c == '*' || c == '%' || (c == '!' && fgetc(inf) == '=')) {
                 token_tracker.lexeme[lexemeIndex++] = c;
                 if (c == '!' && lexemeIndex == 1) {
-                    // != operator
+                    // This is the "!=" operator.
                     token_tracker.lexeme[lexemeIndex++] = '=';
                 }
                 token_tracker.lexeme[lexemeIndex] = '\0';
                 token_tracker.token = BINOP;
-            }
-            // Check for numbers
-            else if (isdigit(c)) {
+            } else if (isdigit(c)) {
+                // Check for numbers
                 while (isdigit(c)) {
                     token_tracker.lexeme[lexemeIndex++] = c;
                     c = fgetc(inf);
@@ -109,9 +108,8 @@ _Bool tokenizer(struct lexics *aLex, int *numLex, FILE *inf) {
                 token_tracker.lexeme[lexemeIndex] = '\0';
                 ungetc(c, inf); // Push back the last non-digit character
                 token_tracker.token = NUMBER;
-            }
-            // Check for keywords or identifiers
-            else if (isalpha(c)) {
+            } else if (isalpha(c)) {
+                // Check for keywords or identifiers
                 while (isAlphanumeric(c)) {
                     token_tracker.lexeme[lexemeIndex++] = c;
                     c = fgetc(inf);
@@ -135,8 +133,8 @@ _Bool tokenizer(struct lexics *aLex, int *numLex, FILE *inf) {
         }
 
         // Store the token in the array
-        if (*numLex < 1000) {
-            aLex[*numLex] = token_tracker; // Copy the token_tracker into the array
+        if (*numLex < LEXEME_MAX) {
+            aLex[*numLex] = token_tracker;
             (*numLex)++; // Increment the number of lexemes
         } else {
             printf("Maximum number of lexemes reached.\n");

@@ -1,3 +1,0 @@
-void statement(int y){
-	y = 7;
-}

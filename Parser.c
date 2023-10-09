@@ -48,7 +48,7 @@ _Bool parser(struct lexics *someLexics, int numberOfLexics) {
     }
 }
 
-// Implement the grammar rules
+// Implementing the grammar rules
 
 // Function rule
 _Bool function(struct lexics *someLexics, int *index, int numberOfLexics) {

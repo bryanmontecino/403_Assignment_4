@@ -29,7 +29,6 @@ enum token{ LEFT_PARENTHESIS,
 			VARTYPE,
 			IDENTIFIER,
 			BINOP,
-			WHITESPACE,
 			NUMBER
 		   };
 
